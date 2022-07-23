@@ -31,10 +31,9 @@
 
 <br><br>
 
+![Vitrix 1.2.0 Singleplayer development version](https://github.com/ShadityZ/Vitrix/raw/dev/screenshot.png)
 
     
 <br>
 Everybody knows lots of diffent FPS shooter games, from Fortnite to CS:GO, the list is longly tiresome. So, what's any different about Vitrix? Well first of all, it has a really cool name. Second of all, it is open-source! No more sneaky malware in your closed-source applications, because the code of Vitrix is fully open and accessible to the community! Well? What are you waiting for? Go ahead and download it if you haven't already, and dive into a world of Vitrix fun!
 
-<br>
-<h4>You can find out everything you else you need to know in the <a href="https://github.com/ShadityZ/Vitrix/blob/docs-development/docs/mainpage.md">Official Vitrix Documentation</a>!</h4>

@@ -1,5 +1,5 @@
 from vitrix_engine import *
-from lib.classes.network import Network
+from lib.api.network import Network
 
 class Chat(Entity):
     def __init__(self, network: Network, username: str, **kwargs):
@@ -40,9 +40,15 @@ class Chat(Entity):
     def input(self, key):
         if key == "enter":
             #temp = self.prefix + self.text_field.text
-            self.network.send_message(self.prefix + self.text_field.text)
-            self.list.append(self.prefix + self.text_field.text)
-            self.text_field.text = ""
+            if not self.text_field.text[0] == "/": # if message is not a command
+                self.network.send_message(self.prefix + self.text_field.text)
+                self.list.append(self.prefix + self.text_field.text)
+                self.text_field.text = ""
+            else:
+                type = self.text_field.text[1:].split()[0] # get command (ex: ban)
+                user = self.text_field.text[1:].split()[1] # get user (ex: RandomUser1234)
+                self.text_field.text = ""
+                self.network.send_command(type, user)
 
     def enable(self):
         self.enabled = True

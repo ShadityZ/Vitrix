@@ -1,10 +1,16 @@
-import os
-import platform
-import threading
+import os, platform, threading, requests
 from vitrix_engine import *
-import lib.classes.settings as settings
+from lib.api.settings import *
 
-def buildexec(modulename,dir_path):
+def get_last_version():
+    try:
+        r = requests.get("https://raw.githubusercontent.com/ShadityZ/Vitrix/dev/vitrix/version.txt")
+        return r.text
+    except:
+        return "unknown"
+
+
+def buildexec(modulename, dir_path):
     try:
         if modulename == "mp":
             os.system("python " + dir_path + "/multiplayer.py")
@@ -13,7 +19,7 @@ def buildexec(modulename,dir_path):
         else:
             pass
     except:
-        pass # throws error: something wrong with os.system or the path
+        pass
 
 
 def start_multiplayer():
@@ -80,8 +86,23 @@ class MenuButton(Button):
         for key, value in kwargs.items():
             setattr(self, key ,value)
 
+def back_settings(fov: str):
+    global state_handler
+    swrite("gameplay_settings", "fov", str(fov))
+    setattr(state_handler, 'state', 'main_menu')
+
+def toggle_shaders():
+    global shaders_button
+    button = shaders_button
+    if sread("gameplay_settings", "shadows") == "true":
+        swrite("gameplay_settings", "shadows", "False")
+        button.text_entity.text = "Shadows: Off"
+    else:
+        swrite("gameplay_settings", "shadows", "True")
+        button.text_entity.text = "Shadows: On"
 
 def load_menu():
+    global state_handler
     button_spacing = .075 * 1.25
     menu_parent = Entity(parent=camera.ui, y=.15)
     main_menu = Entity(parent=menu_parent)
@@ -118,25 +139,23 @@ def load_menu():
                                     on_click=Func(setattr, state_handler,
                                                   'state', 'main_menu'))
 
-
-    preview_text = Text(parent=options_menu, x=.275, y=.25, text='Preview text',
-                       origin=(-.5,0))
     for t in [e for e in scene.entities if isinstance(e, Text)]:
         t.original_scale = t.scale
 
-    fov_slider = Slider(20, 130, default=settings.get_fov(), step=1 , dynamic=True, 
-                        text='FOV:', parent=options_menu)
+    fov_slider = Slider(20, 130, default=int(sread("gameplay_settings", "fov")), step=1, dynamic=True, 
+                        text='FOV:   ', parent=options_menu)
+    if sread("gameplay_settings", "shadows") == "true":
+        button_text = "Shadows: On"
+    else:
+        button_text = "Shadows: Off"
 
-    def set_fov():
-        settings.set_fov(fov_slider.value)
-
-    fov_slider.on_value_changed = set_fov
-
+    global shaders_button
+    shaders_button = Button(text=button_text, scale=0.15, parent=options_menu, on_click=Func(toggle_shaders))
 
     options_back = MenuButton(parent=options_menu, text='Back', x=-.25, origin_x=-.5,
-                            on_click=Func(setattr, state_handler, 'state', 'main_menu'))
+                            on_click=Func(back_settings, str(fov_slider.value)))
 
-    for i, e in enumerate((fov_slider, options_back)):
+    for i, e in enumerate((fov_slider, shaders_button, options_back)):
         e.y = -i * button_spacing
 
 
@@ -170,13 +189,13 @@ def load_menu():
         e.enabled = True
 
 
+window.title = "Vitrix - Menu"
 app = Ursina()
 loading_screen = LoadingWheel(enabled=False)
 window.exit_button.visible = False
-window.title = "Vitrix Menu"
 window.borderless = False
-default_width = 600  # would be migrated to settings.json
-default_height = 600
+default_width = sread("game_settings", "window_width")
+default_height = sread("game_settings", "window_height")
 window.size = (default_width, default_height)
 window.fullscreen = False
 

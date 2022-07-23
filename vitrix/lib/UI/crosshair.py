@@ -1,5 +1,5 @@
 from vitrix_engine import *
-from lib.paths import GamePaths
+from lib.data import GamePaths
 
 
 class Crosshair(Entity):
@@ -9,7 +9,7 @@ class Crosshair(Entity):
             model=os.path.join(GamePaths.models_dir, "cube.obj"),
             scale=.07
         )
-        
+        self.shader = None
         self.set_ranged()
 
     def set_ranged(self):

@@ -1,21 +1,20 @@
-import os
-import time
-import threading
+import os, time, random, threading
 from vitrix_engine import *
 from vitrix_engine.prefabs.first_person_controller import FirstPersonController
 
 from lib.entities.bullet import Bullet
 from lib.entities.crate import Crate
 from lib.entities.enemy import Zombie, Enemy
+from lib.UI.inventory import Inventory
 from lib.UI.healthbar import HealthBar
 from lib.UI.crosshair import Crosshair
 from lib.weapons.hammer import Hammer
 from lib.weapons.pistol import Pistol
 from lib.weapons.sword import Sword
 from lib.weapons.battleaxe import BattleAxe
-from lib.items.aid_kit import AidKit
-from lib.items.ammo import Ammo
-# from lib.UI.inventory import inventory
+from lib.items.aid_kit import AidKit, AidKitInHand
+from lib.items.ammo import Ammo, AmmoInHand
+
 
 
 class Player(FirstPersonController):
@@ -42,20 +41,22 @@ class Player(FirstPersonController):
         self.pew = Audio("pew", autoplay=False)
         self.pew.volume = 0.2
 
-        self.gun = Pistol()
+        self.inventory = Inventory()
+        self.aidkit = AidKitInHand()
+        self.ammo = AmmoInHand()
+        self.pistol = Pistol()
         self.hammer = Hammer()
         self.sword = Sword()
-        self.axe = BattleAxe()
+        self.battleaxe = BattleAxe()
 
+        self.pistol.disable()
         self.hammer.disable()
         self.sword.disable()
-        self.axe.disable()
-
-        self.item_order = ["gun", "hammer", "sword", "axe"]
-        self.holding = "gun"
+        self.battleaxe.disable()
+        self.inventory.append("hammer")
 
         self.pause_text = Text(
-                    ignore_paused=True,
+                        ignore_paused=True,
                         text="Paused",
                         enabled=False,
                         position=Vec2(0, .3),
@@ -66,17 +67,16 @@ class Player(FirstPersonController):
                             enabled=False,
                             scale=2)
 
+        self.no_more_ammo_text = Text(
+                            text="Out of Ammo!",
+                            enabled=False,
+                            scale=2)
+
         self.exit_button = Button(
                     ignore_paused=True,
                         text = "Quit Game",
                         scale=0.15,
                         on_click=Sequence(Wait(.01), Func(os._exit, 0))
-                    )
-
-        self.rounds_counter = Text(
-                        text="Rounds Left: 5",
-                        position=Vec2(.5, .47),
-                        scale=2.5
                     )
 
         self.dead_text = Text(
@@ -102,8 +102,7 @@ class Player(FirstPersonController):
         self.healthbar = HealthBar(self.health)
         self.crosshair = Crosshair()
 
-        self.rounds_left = 5
-        self.paused = False
+        self.holding = 1
         self.shots_left = 5
         self.reach = 6
         self.death_message_shown = False
@@ -116,22 +115,28 @@ class Player(FirstPersonController):
         time.sleep(1)
         self.reload_warning_text.disable()
 
+    def hide_no_more_ammo_text(self):
+        time.sleep(1)
+        self.no_more_ammo_text.disable()
+
     def reload(self):
-        self.speed = 3
-        if self.rounds_left <= 0:
-            self.speed = 7
-            self.rounds_counter.text = "Rounds Left: 0"
+        if self.inventory.find_item("ammo") == False:
+            self.no_more_ammo_text.enable()
+            threading.Thread(target=self.hide_no_more_ammo_text).start()
             return
 
+        self.inventory.remove("ammo")
+        self.speed = 3
         Audio("reload.wav")
         time.sleep(3)
         self.shots_left = 5
         self.speed = 7
 
-        self.rounds_left -= 1
-        self.rounds_counter.text = "Rounds Left: " + str(self.rounds_left)
 
     def input(self, key):
+        if self.paused and not self.inventory.shown:
+            return
+
         if key == "space":
             self.jump()
 
@@ -142,52 +147,32 @@ class Player(FirstPersonController):
             else:
                 self.thirdperson = True
                 camera.z = -8
+        
+        if key == "1" or key == "2" or key == "3" or key == "4" or key == "5":
+            self.holding = int(key)
 
-        if key == "f": # Switch item held
-            if self.gun.enabled:
-                self.gun.disable()
-                self.hammer.enable()
-                self.crosshair.set_melee()
-            elif self.hammer.enabled:
-                self.hammer.disable()
-                self.sword.enable()
-                self.crosshair.set_melee()
-            elif self.sword.enabled:
-                self.sword.disable()
-                self.axe.enable()
-                self.crosshair.set_melee()
-            else:
-                self.axe.disable()
-                self.gun.enable()
-                self.crosshair.set_ranged()
-
-        if key == "r" and self.gun.enabled:
+        if key == "r" and self.pistol.enabled:
             threading.Thread(target=self.reload).start()
 
-        # Inventory key access
-
-        #if key == 'i':
-        #    if not self.inventory_opened:
-        #       _inventory = inventory()
-        #       inventory_opened = True
-        #    else:
-        #       _inventory = None
-        #       inventory_opened = False
-        #
-        #    if self.lock == False:
-        #        self.lock = True
-        #        self.on_enable()
-        #    else:
-        #        self.lock = False
-        #        self.on_disable()
+        if key == "e":
+            if self.inventory.shown:
+                self.on_enable()
+                self.paused = False
+                self.inventory.position = (-.28, -.4)
+                self.inventory.shown = False
+            else:
+                self.on_disable()
+                self.paused = True
+                self.inventory.position = (-.28, -.2)
+                self.inventory.shown = True
 
         if key == "left mouse down" and self.health > 0:
-            if not self.gun.on_cooldown and self.gun.enabled:
+            if not self.pistol.on_cooldown and self.pistol.enabled:
                 if self.shots_left <= 0 and self.speed == 7:
                     self.reload_warning_text.enable()
                     threading.Thread(target=self.hide_reload_warning).start()
                     return
-                self.gun.on_cooldown = True
+                self.pistol.on_cooldown = True
                 bullet_pos = self.position + Vec3(0, 2, 0)
                 self.pew.play()
                 if not self.singleplayer:
@@ -199,8 +184,8 @@ class Player(FirstPersonController):
                                     -self.camera_pivot.world_rotation_x)
                 self.shots_left -= 1
                 destroy(bullet, delay=2)
-                invoke(setattr, self.gun, 'on_cooldown', False, delay=.25)
-            elif self.sword.enabled or self.axe.enabled:
+                invoke(setattr, self.pistol, 'on_cooldown', False, delay=.25)
+            elif self.sword.enabled or self.battleaxe.enabled:
                 slash = Audio("swing")
                 slash.play()
                 hit_info = raycast(self.world_position + Vec3(0, 2, 0), 
@@ -215,22 +200,27 @@ class Player(FirstPersonController):
 
 
         if key == "right mouse down":
+            item_id = self.inventory.items[0][self.holding-1][0]
+            if item_id == "aid_kit":
+                self.restore_health(random.randint(50, 80))
+                self.inventory.remove("aid_kit")
+                return
+
             hit_info = raycast(self.world_position + Vec3(0, 2, 0), 
                                self.camera_pivot.forward, self.reach, ignore=(self,))
-            try:
-                for entity in hit_info.entities:
-                    if isinstance(hit_info.entity, Crate) and self.hammer.enabled:
-                        print(hit_info.entity.contents)
-                        destroy(hit_info.entity)
-                    if isinstance(hit_info.entity, AidKit):
-                        print("Healing...")
-                        self.restore_health(hit_info.entity.health_restore)
-                        destroy(hit_info.entity)
-                    if isinstance(hit_info.entity, Ammo):
-                        self.restore_rounds(5)
-                        destroy(hit_info.entity)
-            except:
-                pass
+            for entity in hit_info.entities:
+                if isinstance(hit_info.entity, Crate) and self.hammer.enabled:
+                    for item in hit_info.entity.contents:
+                        if not item == "nothing":
+                            self.inventory.append(item, 2)
+                    destroy(hit_info.entity)
+                if isinstance(hit_info.entity, AidKit):
+                    destroy(hit_info.entity)
+                    self.inventory.append("aid_kit")
+                if isinstance(hit_info.entity, Ammo):
+                    destroy(hit_info.entity)
+                    self.inventory.append("ammo")
+
 
     def death(self):
         self.death_message_shown = True
@@ -239,7 +229,7 @@ class Player(FirstPersonController):
 
         Audio("death").play() # Play death sound
 
-        destroy(self.gun)
+        destroy(self.pistol)
         destroy(self.healthbar.icon)
         destroy(self.healthbar)
         self.rotation = 0
@@ -256,14 +246,13 @@ class Player(FirstPersonController):
     def respawn(self):
         self.death_message_shown = False
         self.on_enable()
-        self.gun = Pistol()
+        self.pistol = Pistol()
         self.rotation = Vec3(0, 0, 0)
         self.camera_pivot.world_rotation_x = 0
         self.world_position = Vec3(0, 3, 0)
         self.exit_button.position = Vec2(0, 0)
         self.crosshair.enable()
         self.health = 150
-        self.rounds_left = 5
         self.healthbar = HealthBar(self.health)
         self.respawn_button.disable()
         self.dead_text.disable()
@@ -277,15 +266,32 @@ class Player(FirstPersonController):
 
         self.healthbar.value = self.health    
 
-    def restore_rounds(self, amount: int):
-        if self.rounds_left + amount > 15:
-            self.rounds_left = 15
-        else:
-            self.rounds_left += amount
-
-        self.rounds_counter.text = "Rounds Left: " + str(self.rounds_left)
+    def disable_all_weapons(self):
+        self.pistol.disable()
+        self.hammer.disable()
+        self.sword.disable()
+        self.battleaxe.disable()
+        self.aidkit.disable()
+        self.ammo.disable()
 
     def update(self):
+        item_id = self.inventory.items[0][self.holding-1][0]
+        self.disable_all_weapons()
+        if item_id == "pistol":
+            self.pistol.enable()
+        elif item_id == "hammer":
+            self.hammer.enable()
+        elif item_id == "sword":
+            self.sword.enable()
+        elif item_id == "battleaxe":
+            self.battleaxe.enable()
+        elif item_id == "aid_kit":
+            self.aidkit.enable()
+        elif item_id == "ammo":
+            self.ammo.enable()
+        else:
+            pass
+
         if self.y < -10:
             self.position = Vec3(0, 2, 0)
 

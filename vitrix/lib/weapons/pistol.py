@@ -1,6 +1,6 @@
 import os
 from vitrix_engine import *
-from lib.paths import GamePaths
+from lib.data import GamePaths
 
 class Pistol(Entity):
     def __init__(self):

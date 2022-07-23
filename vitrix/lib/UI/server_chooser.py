@@ -1,6 +1,6 @@
 import os
 from tkinter import *
-from lib.paths import GamePaths
+from lib.data import GamePaths
 from lib.UI.notification import notify
 
 

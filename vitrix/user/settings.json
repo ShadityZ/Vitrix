@@ -1,16 +1,1 @@
-{
-    "game_settings": {
-        "language": "en",
-        "text_size": "1",
-        "window_width": "600",
-        "window_height": "600",
-        "shadows": "True"
-    },
-    "multiplayer": {
-        "username": "Player",
-        "icon": "icon.png"
-    },
-    "gameplay_settings": {
-        "fov": "85"
-    }
-}
+{"game_settings": {"language": "en", "text_size": "1", "window_width": "1000", "window_height": "600"}, "multiplayer": {"username": "Player", "icon": "icon.png"}, "gameplay_settings": {"fov": "85", "shadows": "True"}}

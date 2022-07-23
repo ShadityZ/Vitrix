@@ -5,7 +5,7 @@ vitrix/lib/weapons/__pycache__/
 vitrix/lib/items/__pycache__/
 vitrix/lib/UI/__pycache__/
 vitrix/lib/entities/__pycache__/
-vitrix/lib/classes/__pycache__/
+vitrix/lib/api/__pycache__/
 vitrix/test.py
 vitrix_engine.egg-info/
 venvs-config/

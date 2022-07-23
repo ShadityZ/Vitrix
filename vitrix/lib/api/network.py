@@ -28,6 +28,10 @@ class Network:
         self.client.connect((self.addr, self.port))
         self.id = self.client.recv(self.recv_size).decode("utf8")
         self.client.send(self.username.encode("utf8"))
+        if self.client.recv(self.recv_size).decode("utf8") == "False":
+            return False
+        else:
+            return True
 
 
     def receive_info(self):
@@ -40,6 +44,11 @@ class Network:
             return None
 
         msg_decoded = msg.decode("utf8")
+
+        if msg_decoded == "kicked":
+            return "kicked"
+        if msg_decoded == "banned":
+            return "banned"
 
         left_bracket_index = msg_decoded.index("{")
         right_bracket_index = msg_decoded.index("}") + 1
@@ -99,6 +108,7 @@ class Network:
         except socket.error as e:
             print(e)
 
+
     def send_message(self, message: str):
         message_info = {
             "object": "chat_message",
@@ -109,5 +119,21 @@ class Network:
 
         try:
             self.client.send(message_info_encoded)
+        except socket.error as e:
+            print(e)
+
+
+    def send_command(self, type: str, target: str):
+        command_info = {
+            "object": "command",
+            "type": type,
+            "author": self.username,
+            "target": target
+        }
+
+        command_info_encoded = json.dumps(command_info).encode("utf8")
+
+        try:
+            self.client.send(command_info_encoded)
         except socket.error as e:
             print(e)

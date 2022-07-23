@@ -1,12 +1,9 @@
-import os
-import sys
-import socket
+import os, sys, socket
 from lib.UI.notification import notify
-from lib.paths import GamePaths
+from lib.data import GamePaths
 
 try:    # Check the internet connection before starting.
     socket.socket(socket.AF_INET, socket.SOCK_STREAM).connect(("8.8.8.8", 53))
-
     print("Internet connection detected!")
 except:
     notify("Vitrix - Internet connection error", """Sorry, Vitrix couldn't connect
@@ -20,26 +17,17 @@ import threading
 from vitrix_engine import *
 from vitrix_engine.shaders.basic_lighting_shader import basic_lighting_shader
 
-from lib.classes.settings import get_fov
+from lib.api.settings import *
 
 from lib.UI.chat import Chat
-from lib.classes.network import Network
+from lib.api.network import Network
 from lib.entities.map import Map
 from lib.entities.player import Player
 from lib.entities.enemy import Enemy
 from lib.entities.bullet import Bullet
 
-if os.path.isfile("ib.cfg"):
-    if open("ib.cfg", "r").read() == "1":
-        print("You can't play multiplayer.")
-        print("Reason: Cheats")
-        notify("You can't play multiplayer.", "You have been banned\nReason: Cheats")
-        sys.exit(1)
-else:
-    pass
-
 import lib.UI.server_chooser
-from lib.classes.anticheat import *
+from lib.api.anticheat import *
 
 try:
     with open("data.txt", "r") as file:
@@ -49,7 +37,6 @@ try:
         server_port = lines[2].strip()
 except FileNotFoundError:
     sys.exit(1)
-
 
 while True:
     print(username, " ", server_addr, " ", server_port)
@@ -65,7 +52,11 @@ while True:
     error_occurred = False
 
     try:
-        n.connect()
+        succeeded = n.connect()
+        if not succeeded:
+            notify("You've been banned!",
+                 "Sorry, but it appears as you are banned from this server!")
+            sys.exit(1)
     except ConnectionRefusedError:
         notify("Vitrix Error",
                  "Connection refused! This can be because server hasn't started or has reached it's player limit.")
@@ -94,20 +85,25 @@ window.icon = os.path.join(GamePaths.static_dir, "logo.ico")
 app = Ursina()
 window.borderless = False
 window.exit_button.visible = False
-window.fullscreen = True
-camera.fov = get_fov()
+default_width = sread('game_settings', 'window_width')
+default_height = sread('game_settings', 'window_height')
+window.size = (default_width, default_height)
+# window.fullscreen = True
+
+try:
+    from colorama import Fore
+    print("\n" + Fore.CYAN + "Toggle fullscreen with F11 to get better performances" + Fore.RESET)
+except:
+    print("Please install colorama to see colorized text")
+    print("Toggle fullscreen with F11 to get better performances")
+
+Text.default_font = os.path.join(GamePaths.static_dir, "font.ttf")
+if sread('gameplay_settings', 'shadows') == "True":
+    Entity.default_shader = basic_lighting_shader
+    sun = DirectionalLight()
+    sun.look_at(Vec3(1,-1,-1))
 
 map = Map()
-sky = Entity(
-    model=os.path.join(GamePaths.models_dir, "sphere.obj"),
-    texture=os.path.join(GamePaths.textures_dir, "sky.png"),
-    scale=9999,
-    double_sided=True
-)
-Entity.default_shader = basic_lighting_shader
-
-player = Player(Vec3(0, 1, 0), n)
-chat = Chat(n, username)
 
 def toggle_fullscreen():
     if window.fullscreen:
@@ -124,6 +120,12 @@ fullscreen_button = Button(
         )
 fullscreen_button.fit_to_text()
 
+
+player = Player(Vec3(0, 1, 0), n)
+chat = Chat(n, username)
+
+camera.fov = int(sread('gameplay_settings', 'fov'))
+
 prev_pos = player.world_position
 prev_dir = player.world_rotation_y
 enemies = []
@@ -137,9 +139,20 @@ def receive():
             print(e)
             continue
 
+        if info == "kicked":
+            app.destroy()
+            notify("You were kicked!", "It seems that a server moderator kicked you from the server")
+            sys.exit(1)
+        
+        if info == "banned":
+            app.destroy()
+            notify("You've been banned!", "Sorry, but it appears as you are banned from this server!")
+            sys.exit(1)
+
         if not info:
-            print("Server has stopped! Exiting...")
-            sys.exit()
+            app.destroy()
+            notify("Vitrix Error", "The server was shut down and you were kicked. Sorry for the inconvenience.")
+            sys.exit(1)
 
         if info["object"] == "player":
             enemy_id = info["id"]
@@ -217,28 +230,30 @@ def update():
 
 
 def input(key):
-    if key == "t" and not fullscreen_button.enabled:
+    if key == "t" and not fullscreen_button.enabled and chat.text_field.text == "":
         if chat.enabled:
             player.on_enable()
+            player.paused = False
             chat.disable()
         else:
             chat.enable()
+            player.paused = True
             player.on_disable()
 
     if key == ("tab" or "escape") and not chat.enabled:
-        if not player.paused:
+        if player.paused:
             player.pause_text.disable()
             player.exit_button.disable()
             fullscreen_button.disable()
             player.crosshair.enable()
-            player.paused = True
+            player.paused = False
             player.on_enable()
         else:
             player.pause_text.enable()
             player.exit_button.enable()
             fullscreen_button.enable()
             player.crosshair.disable()
-            player.paused = False
+            player.paused = True
             player.on_disable()
 
 

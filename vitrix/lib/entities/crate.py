@@ -2,7 +2,7 @@ import os
 from vitrix_engine import *
 import random
 
-from lib.paths import GamePaths
+from lib.data import GamePaths
 
 
 class Crate(Entity):
@@ -16,7 +16,8 @@ class Crate(Entity):
             texture=os.path.join(GamePaths.textures_dir, "crate.png"),
         )
         
-        items_list = ["gun", "bandages", "first_aid_kit", "bandages", "bandages"]
+        items_list = ["pistol", "pistol", "pistol", "pistol", "sword", "sword", "battleaxe", "nothing", 
+                      "nothing", "nothing"]
 
         self.contents = []
 
